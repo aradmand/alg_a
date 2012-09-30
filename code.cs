@@ -124,12 +124,31 @@ public class StockDataNode
 		lowVal = low;
 		closeVal = close;
     }
+
+    public StockDataNode(DateTime time,
+                     Double val,
+                     Double open,
+                     Double high,
+                     Double low,
+                     Double close,
+                     Double val2)
+    {
+        timestamp = time;
+        value = val;
+        openVal = open;
+        highVal = high;
+        lowVal = low;
+        closeVal = close;
+        value2 = val2;
+    }
+
     public DateTime timestamp;
     public Double value;
 	public Double openVal;
 	public Double highVal;
 	public Double lowVal;
 	public Double closeVal;
+    public Double value2;
 }
 
 public class StochasticOscillator
@@ -168,6 +187,37 @@ public class StochasticOscillator
         mPeriodForPercentD = mPeriod;
     }
 
+    public Double getHighPrice(int N, List<StockDataNode> stockData)
+    {
+        if (stockData.Count <= 0)
+        {
+            return 0;
+        }
+        int size = stockData.Count - 1;
+        if (N >= stockData.Count)
+        {
+            size = stockData.Count - 1;
+        }
+        Double high = -1;
+        for (int i = 0; i < N; i++)
+        {
+            if (size < 0)
+            {
+                break;
+            }
+            if (high == -1)
+            {
+                high = stockData[size].highVal;
+            }
+            if (stockData[size].highVal > high)
+            {
+                high = stockData[size].highVal;
+            }
+            size--;
+        }
+
+        return high;
+    }
 
     public Double getHighClosingPrice(int N, List<StockDataNode> stockData)
     {
@@ -200,6 +250,39 @@ public class StochasticOscillator
 
         return high;
     }
+
+    public Double getLowPrice(int N, List<StockDataNode> stockData)
+    {
+        if (stockData.Count <= 0)
+        {
+            return 0;
+        }
+        int size = stockData.Count - 1;
+        if (N >= stockData.Count)
+        {
+            size = stockData.Count - 1;
+        }
+        Double low = 9999;
+        for (int i = 0; i < N; i++)
+        {
+            if (size < 0)
+            {
+                break;
+            }
+            if (low == 9999)
+            {
+                low = stockData[size].lowVal;
+            }
+            if (stockData[size].lowVal < low)
+            {
+                low = stockData[size].lowVal;
+            }
+            size--;
+        }
+
+        return low;
+    }
+
 
 
     public Double getLowClosingPrice(int N, List<StockDataNode> stockData)
@@ -274,7 +357,7 @@ public class StochasticOscillator
         double sum = 0;
         for (int i = 0; i < mPeriodForPercentD; i++)
         {
-            sum += percentKData[size].value;
+            sum += percentKData[size].value2;
             size--;
         }
         double d = sum / mPeriodForPercentD;
@@ -301,10 +384,22 @@ public class StochasticOscillator
             //Use the previous N periods to calculate the current fast %k, and store it
             percentKData.Add(new StockDataNode(timestamp, 0, openPrice, highPrice, lowPrice, closePrice));
             double currentClosingPrice = closePrice;
-            double low = getLowClosingPrice(nPeriodForPercentK, percentKData);
-            double high = getHighClosingPrice(nPeriodForPercentK, percentKData);
+            double low = getLowPrice(nPeriodForPercentK, percentKData);
+            double high = getHighPrice(nPeriodForPercentK, percentKData);
             double k = (currentClosingPrice - low) / (high - low);
+
+            //Find the average of %k over the last SMOOTHING number of periods
+            double kSum = k;
+            int index = percentKData.Count - 2; //-2 to account for the above added node
+            for (int i = 0; i < smoothingForPercentD - 1; i++)
+            {
+                kSum += percentKData[index].value;
+                index--;
+            }
+            double avgK = kSum / smoothingForPercentD;
+
             percentKData[percentKData.Count - 1].value = k;
+            percentKData[percentKData.Count - 1].value2 = avgK;
             String calc ="current: " + currentClosingPrice.ToString() + "\n";
             calc += "low: " + low.ToString() + "\n";
             calc += "high: " + high.ToString();
@@ -321,6 +416,17 @@ public class StochasticOscillator
         }
         return percentKData[percentKData.Count - 1].value;
     }
+
+    public double getLastSmoothedPercentK()
+    {
+        if (percentKData.Count == 0)
+        {
+            return 0;
+        }
+        return percentKData[percentKData.Count - 1].value2;
+    }
+
+    
 
 
     public double getLastPercentD()
@@ -379,7 +485,7 @@ public class MyStrategy : Strategy
         ema.updateExpentialMovingAverage(bar.DateTime, bar.Open, bar.High, bar.Low, bar.Close);
 
         //Prints Timestamp, %k, %D, EMA, ClosePrice
-        String output = bar.DateTime.ToString() + "\t" + so.getLastPercentK() + "\t" + so.getLastPercentD() + "\t" + ema.getLastEMA().ToString() + "\t" + bar.Close;
+        String output = bar.DateTime.ToString() + "\t" + so.getLastPercentK() + "\t" + so.getLastSmoothedPercentK() + "\t" + so.getLastPercentD() + "\t" + ema.getLastEMA().ToString() + "\t" + bar.Close;
         Console.WriteLine(output);
 	}
 
