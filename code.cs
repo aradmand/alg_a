@@ -6,11 +6,106 @@ using System.Collections.Generic;
 using OpenQuant.API;
 using OpenQuant.API.Indicators;
 
+public class SimpleMovingAverage
+{
+    //Inputs:
+    // Period
+    int period;
+    public SimpleMovingAverage(int tickPeriod)
+    {
+        period = tickPeriod;
+    }
+
+    public void updateSimpleMovingAverage(DateTime timestamp,
+                                        double openPrice,
+                                        double highPrice,
+                                        double lowPrice,
+                                        double closePrice)
+    {
+        if (smaData.Count < period)
+        {
+            //Do nothing, we don't have enough data yet.
+            smaData.Add(new StockDataNode(timestamp, 0, openPrice, highPrice, lowPrice, closePrice));
+            return;
+        }
+
+        //Use the previous periods to calculate the SMA and store it
+        int size = smaData.Count - 1;
+        double sum = 0;
+        for (int i = 0; i < period; i++)
+        {
+            sum += smaData[size].closeVal;
+            size--;
+        }
+        double d = sum / period;
+        smaData.Add(new StockDataNode(timestamp, d, openPrice, highPrice, lowPrice, closePrice));
+        //String output = "Simple Moving Average: " + d.ToString();
+        //Console.WriteLine(output);
+    }
+
+    public double getLastSMA()
+    {
+        return smaData[smaData.Count - 1].value;
+    }
+
+    List<StockDataNode> smaData = new List<StockDataNode>();
+}
+
+
 public class ExponentialMovingAverage
 {
     //Inputs:
     // Period
-   
+
+    int period;
+ 
+    public ExponentialMovingAverage(int tickPeriod)
+    {
+        period = tickPeriod;
+        sma = new SimpleMovingAverage(tickPeriod);
+    }
+
+    public void updateExpentialMovingAverage(DateTime timestamp,
+                                        double openPrice,
+                                        double highPrice,
+                                        double lowPrice,
+                                        double closePrice)
+    {
+        if (emaData.Count < period)
+        {
+            //Do nothing, we don't have enough data yet.
+            sma.updateSimpleMovingAverage(timestamp, openPrice, highPrice, lowPrice, closePrice);
+            //Use previous day's SMA as the starting EMA
+            emaData.Add(new StockDataNode(timestamp, sma.getLastSMA(), openPrice, highPrice, lowPrice, closePrice));
+            
+            return;
+        }
+        sma.updateSimpleMovingAverage(timestamp, openPrice, highPrice, lowPrice, closePrice);
+
+        double simpleMovingAvg = sma.getLastSMA();
+
+        double multiplier = 2.00 / (period + 1.00);
+       
+        double ema = (closePrice - this.getLastEMA() ) * multiplier + this.getLastEMA();
+
+        emaData.Add(new StockDataNode(timestamp, ema, openPrice, highPrice, lowPrice, closePrice));
+
+        //String calcStr = "("+closePrice.ToString() + " - " + this.getLastEMA().ToString() + ") * " + multiplier.ToString() + " + " + this.getLastEMA().ToString();
+        //Console.WriteLine("CALCSTR ==== " + calcStr);
+
+        //String output = "EMA: " + ema.ToString();
+        //Console.WriteLine(output);
+
+        
+    }
+
+    public double getLastEMA()
+    {
+        return emaData[emaData.Count - 1].value;
+    }
+
+    SimpleMovingAverage sma;
+    List<StockDataNode> emaData = new List<StockDataNode>();
 }
 
 public class StockDataNode
@@ -76,46 +171,66 @@ public class StochasticOscillator
 
     public Double getHighClosingPrice(int N, List<StockDataNode> stockData)
     {
-        int size = N;
+        if (stockData.Count <= 0)
+        {
+            return 0;
+        }
+        int size = stockData.Count - 1;
         if (N >= stockData.Count)
         {
             size = stockData.Count - 1;
         }
-        Double high = 9999;
-        for (int i = size; i > 0; i--)
+        Double high = -1;
+        for (int i = 0; i < N; i++)
         {
-            if (i == size)
+            if (size < 0)
             {
-                high = stockData[i].closeVal;
+                break;
             }
-            if (stockData[i].closeVal > high)
+            if (high == -1)
             {
-                high = stockData[i].closeVal;
+                high = stockData[size].closeVal;
             }
+            if (stockData[size].closeVal > high)
+            {
+                high = stockData[size].closeVal;
+            }
+            size--;
         }
+
         return high;
     }
 
 
     public Double getLowClosingPrice(int N, List<StockDataNode> stockData)
     {
-       int size = N;
+        if (stockData.Count <= 0)
+        {
+            return 0;
+        }
+        int size = stockData.Count - 1;
         if (N >= stockData.Count)
         {
             size = stockData.Count - 1;
         }
         Double low = 9999;
-        for (int i = size; i > 0; i--)
+        for (int i = 0; i < N; i++)
         {
-            if (i == size)
+            if (size < 0)
             {
-                low = stockData[i].closeVal;
+                break;
             }
-            if (stockData[i].closeVal < low)
+            if (low == 9999)
             {
-                low = stockData[i].closeVal;
+                low = stockData[size].closeVal;
             }
+            if (stockData[size].closeVal < low)
+            {
+                low = stockData[size].closeVal;
+            }
+            size--;
         }
+
         return low;
     }
 
@@ -125,8 +240,8 @@ public class StochasticOscillator
                                            double lowPrice,
                                            double closePrice)
     {
-        String output = "UpdatingStochasticOscillator: " + " " + timestamp.ToString() + " " + openPrice.ToString() + " " + highPrice + " " + lowPrice + " " + closePrice;
-        Console.WriteLine(output);
+        //String output = "UpdatingStochasticOscillator: " + " " + timestamp.ToString() + " Open=" + openPrice.ToString() + " High=" + highPrice + " Low=" + lowPrice + " Close=" + closePrice;
+        //Console.WriteLine(output);
         updateFastPercentK(timestamp,
                            openPrice,
                            highPrice,
@@ -164,8 +279,8 @@ public class StochasticOscillator
         }
         double d = sum / mPeriodForPercentD;
         percentDData.Add(new StockDataNode(timestamp, d, openPrice, highPrice, lowPrice, closePrice));
-        String output = "PercentD: " + d.ToString();
-        Console.WriteLine(output);
+        //String output = "PercentD: " + d.ToString();
+        //Console.WriteLine(output);
         
     }
 
@@ -193,12 +308,29 @@ public class StochasticOscillator
             String calc ="current: " + currentClosingPrice.ToString() + "\n";
             calc += "low: " + low.ToString() + "\n";
             calc += "high: " + high.ToString();
-            Console.WriteLine(calc);
-            String output = "PercentK: " + k.ToString();
-            Console.WriteLine(output);
+            //Console.WriteLine(calc);
+            //String output = "PercentK: " + k.ToString();
+            //Console.WriteLine(output);
         }
     }
 
+    public double getLastPercentK()
+    {
+        if (percentKData.Count == 0) {
+           return 0;
+        }
+        return percentKData[percentKData.Count - 1].value;
+    }
+
+
+    public double getLastPercentD()
+    {
+        if (percentDData.Count == 0)
+        {
+            return 0;
+        }
+        return percentDData[percentDData.Count - 1].value;
+    }
 
     List<StockDataNode> percentKData = new List<StockDataNode>();
     List<StockDataNode> percentDData = new List<StockDataNode>();
@@ -210,26 +342,45 @@ public class StochasticOscillator
 public class MyStrategy : Strategy
 {
     StochasticOscillator so;
+    ExponentialMovingAverage ema;
 
 	public override void OnStrategyStart()
 	{
+        //Stochastic Variables
+        double tickPeriod = 10;
+        double highThres = 80;
+        double lowThres = 20;
+        int nPeriod = 14;
+        double smooth = 3;
+        int mPeriod = 3;
+
+        //Exponential Moving Avg. Variables
+        int emaPeriod = 10;
+
 		System.Console.WriteLine("On strategy start");
-        so = new StochasticOscillator(10, 
-                                      80,
-                                      20,
-                                      14,
-                                      3,
-                                      3);
+        so = new StochasticOscillator(tickPeriod, 
+                                      highThres,
+                                      lowThres,
+                                      nPeriod,
+                                      smooth,
+                                      mPeriod);
+
+        ema = new ExponentialMovingAverage(emaPeriod);
 	}
 
 	public override void OnBar(Bar bar)
 	{
-		//System.Console.WriteLine(bar);
         so.updateStochasticOscillator(bar.DateTime,
                                            bar.Open,
                                            bar.High,
                                            bar.Low,
                                            bar.Close);
+
+        ema.updateExpentialMovingAverage(bar.DateTime, bar.Open, bar.High, bar.Low, bar.Close);
+
+        //Prints Timestamp, %k, %D, EMA, ClosePrice
+        String output = bar.DateTime.ToString() + "\t" + so.getLastPercentK() + "\t" + so.getLastPercentD() + "\t" + ema.getLastEMA().ToString() + "\t" + bar.Close;
+        Console.WriteLine(output);
 	}
 
 	public override void OnQuote(Quote quote)
