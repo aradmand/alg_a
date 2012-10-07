@@ -6,14 +6,199 @@ using System.Collections.Generic;
 using OpenQuant.API;
 using OpenQuant.API.Indicators;
 
+public class Bulker
+{
+    //Inputs:
+    // Period
+    public int bulkPeriod; //Will bulk together 'bulkPeriod' periods and treat it as one Period
+
+    List<StockDataNode> bulkData = new List<StockDataNode>();
+    List<StockDataNode> periodData = new List<StockDataNode>();
+
+    public Bulker(int bulk)
+    {
+        bulkPeriod = bulk;
+    }
+
+    public StockDataNode getLastPeriodData()
+    {
+        if (periodData.Count <= 0)
+        {
+            return null;
+        }
+        return periodData[periodData.Count - 1];
+    }
+
+    //Returns -1 if the bulker has not yet built up one period
+    //Returns 1 otherwise
+    public int update(DateTime timestamp,
+                                        double openPrice,
+                                        double highPrice,
+                                        double lowPrice,
+                                        double closePrice)
+    {
+        //Do nothing, we don't have enough data yet.
+        bulkData.Add(new StockDataNode(timestamp, 0, openPrice, highPrice, lowPrice, closePrice));
+
+        if (bulkData.Count == 1)
+        {
+            return -1;
+        }
+        if (bulkData.Count % bulkPeriod == 0)
+        {
+            //Calculate the high, low, open, and close
+            double high = getHighPrice(bulkPeriod, bulkData);
+            double low = getLowPrice(bulkPeriod, bulkData);
+            double open = bulkData[bulkData.Count - bulkPeriod].openVal;
+            double close = closePrice;
+            periodData.Add(new StockDataNode(timestamp, 0, openPrice, highPrice, lowPrice, closePrice));
+        }
+        return 1;
+    }
+
+    public Double getHighPrice(int N, List<StockDataNode> stockData)
+    {
+        if (stockData.Count <= 0)
+        {
+            return 0;
+        }
+        int size = stockData.Count - 1;
+        if (N >= stockData.Count)
+        {
+            size = stockData.Count - 1;
+        }
+        Double high = -1;
+        for (int i = 0; i < N; i++)
+        {
+            if (size < 0)
+            {
+                break;
+            }
+            if (high == -1)
+            {
+                high = stockData[size].highVal;
+            }
+            if (stockData[size].highVal > high)
+            {
+                high = stockData[size].highVal;
+            }
+            size--;
+        }
+
+        return high;
+    }
+
+    public Double getHighClosingPrice(int N, List<StockDataNode> stockData)
+    {
+        if (stockData.Count <= 0)
+        {
+            return 0;
+        }
+        int size = stockData.Count - 1;
+        if (N >= stockData.Count)
+        {
+            size = stockData.Count - 1;
+        }
+        Double high = -1;
+        for (int i = 0; i < N; i++)
+        {
+            if (size < 0)
+            {
+                break;
+            }
+            if (high == -1)
+            {
+                high = stockData[size].closeVal;
+            }
+            if (stockData[size].closeVal > high)
+            {
+                high = stockData[size].closeVal;
+            }
+            size--;
+        }
+
+        return high;
+    }
+
+    public Double getLowPrice(int N, List<StockDataNode> stockData)
+    {
+        if (stockData.Count <= 0)
+        {
+            return 0;
+        }
+        int size = stockData.Count - 1;
+        if (N >= stockData.Count)
+        {
+            size = stockData.Count - 1;
+        }
+        Double low = 9999;
+        for (int i = 0; i < N; i++)
+        {
+            if (size < 0)
+            {
+                break;
+            }
+            if (low == 9999)
+            {
+                low = stockData[size].lowVal;
+            }
+            if (stockData[size].lowVal < low)
+            {
+                low = stockData[size].lowVal;
+            }
+            size--;
+        }
+
+        return low;
+    }
+
+
+
+    public Double getLowClosingPrice(int N, List<StockDataNode> stockData)
+    {
+        if (stockData.Count <= 0)
+        {
+            return 0;
+        }
+        int size = stockData.Count - 1;
+        if (N >= stockData.Count)
+        {
+            size = stockData.Count - 1;
+        }
+        Double low = 9999;
+        for (int i = 0; i < N; i++)
+        {
+            if (size < 0)
+            {
+                break;
+            }
+            if (low == 9999)
+            {
+                low = stockData[size].closeVal;
+            }
+            if (stockData[size].closeVal < low)
+            {
+                low = stockData[size].closeVal;
+            }
+            size--;
+        }
+
+        return low;
+    }
+
+}
+
 public class SimpleMovingAverage
 {
     //Inputs:
     // Period
     int period;
-    public SimpleMovingAverage(int tickPeriod)
+
+    Bulker bulker;
+    public SimpleMovingAverage(int tickPeriod, int bulkPer)
     {
         period = tickPeriod;
+        bulker = new Bulker(bulkPer);
     }
 
     public void updateSimpleMovingAverage(DateTime timestamp,
@@ -22,6 +207,23 @@ public class SimpleMovingAverage
                                         double lowPrice,
                                         double closePrice)
     {
+        int evalPeriod = bulker.update(timestamp,
+                                         openPrice,
+                                         highPrice,
+                                         lowPrice,
+                                         closePrice);
+        if (evalPeriod == -1)
+        {
+            //We haven't built up a period yet
+            return;
+        }
+
+        StockDataNode node = bulker.getLastPeriodData();
+        openPrice = node.openVal;
+        highPrice = node.highVal;
+        lowPrice = node.lowVal;
+        closePrice = node.closeVal;
+
         if (smaData.Count < period)
         {
             //Do nothing, we don't have enough data yet.
@@ -58,11 +260,14 @@ public class ExponentialMovingAverage
     // Period
 
     int period;
+
+    Bulker bulker;
  
-    public ExponentialMovingAverage(int tickPeriod)
+    public ExponentialMovingAverage(int tickPeriod, int bulkPer)
     {
         period = tickPeriod;
-        sma = new SimpleMovingAverage(tickPeriod);
+        bulker = new Bulker(bulkPer);
+        sma = new SimpleMovingAverage(tickPeriod, bulkPer);
     }
 
     public void updateExpentialMovingAverage(DateTime timestamp,
@@ -71,6 +276,23 @@ public class ExponentialMovingAverage
                                         double lowPrice,
                                         double closePrice)
     {
+        int evalPeriod = bulker.update(timestamp,
+                                         openPrice,
+                                         highPrice,
+                                         lowPrice,
+                                         closePrice);
+        if (evalPeriod == -1)
+        {
+            //We haven't built up a period yet
+            return;
+        }
+
+        StockDataNode node = bulker.getLastPeriodData();
+        openPrice = node.openVal;
+        highPrice = node.highVal;
+        lowPrice = node.lowVal;
+        closePrice = node.closeVal;
+
         if (emaData.Count < period)
         {
             //Do nothing, we don't have enough data yet.
@@ -165,14 +387,16 @@ public class StochasticOscillator
     // Fast_Percent_K
     // Fast_Percent_D
     
-    private double tickerPeriod;
+    private int tickerPeriod;
     private double highThreshold;
     private double lowThreshold;
     private int nPeriodForPercentK;
     private double smoothingForPercentD;
     private int mPeriodForPercentD;
 
-    public StochasticOscillator(double tickPeriod,
+    Bulker bulker;
+    public StochasticOscillator(int tickPeriod,
+                           int bulkPer,
                          double highThres,
                          double lowThres,
                          int nPeriod,
@@ -185,6 +409,7 @@ public class StochasticOscillator
         nPeriodForPercentK = nPeriod;
         smoothingForPercentD = smooth;
         mPeriodForPercentD = mPeriod;
+        bulker = new Bulker(bulkPer);
     }
 
     public Double getHighPrice(int N, List<StockDataNode> stockData)
@@ -323,8 +548,26 @@ public class StochasticOscillator
                                            double lowPrice,
                                            double closePrice)
     {
+        int evalPeriod = bulker.update(timestamp,
+                                         openPrice,
+                                         highPrice,
+                                         lowPrice,
+                                         closePrice);
+        if (evalPeriod == -1)
+        {
+            //We haven't built up a period yet
+            return;
+        }
+
+        StockDataNode node = bulker.getLastPeriodData();
+        openPrice = node.openVal;
+        highPrice = node.highVal;
+        lowPrice = node.lowVal;
+        closePrice = node.closeVal;
+
         //String output = "UpdatingStochasticOscillator: " + " " + timestamp.ToString() + " Open=" + openPrice.ToString() + " High=" + highPrice + " Low=" + lowPrice + " Close=" + closePrice;
         //Console.WriteLine(output);
+
         updateFastPercentK(timestamp,
                            openPrice,
                            highPrice,
@@ -346,6 +589,8 @@ public class StochasticOscillator
                             double lowPrice,
                             double closePrice)
     {
+
+
         if (percentKData.Count < mPeriodForPercentD)
         {
             //Do nothing, we don't have enough data yet.
@@ -447,36 +692,54 @@ public class StochasticOscillator
 
 public class MyStrategy : Strategy
 {
-    StochasticOscillator so;
+    StochasticOscillator so_180;
+    StochasticOscillator so_45;
     ExponentialMovingAverage ema;
 
 	public override void OnStrategyStart()
 	{
-        //Stochastic Variables
-        double tickPeriod = 10;
+        
+        //180 min period Stochastic Variables
+        double tickPeriod = 180;
         double highThres = 80;
         double lowThres = 20;
-        int nPeriod = 14;
-        double smooth = 3;
-        int mPeriod = 3;
+        int nPeriod = 21;
+        double smooth = 5;
+        int mPeriod = 4;
+
+
+        //45 min period Stochastic Variables
+        double tickPeriod_45 = 10;
+        double highThres_45 = 80;
+        double lowThres_45 = 20;
+        int nPeriod_45 = 14;
+        double smooth_45 = 3;
+        int mPeriod_45 = 3;
 
         //Exponential Moving Avg. Variables
         int emaPeriod = 10;
 
 		System.Console.WriteLine("On strategy start");
-        so = new StochasticOscillator(tickPeriod, 
+        so_180 = new StochasticOscillator(tickPeriod, 
                                       highThres,
                                       lowThres,
                                       nPeriod,
                                       smooth,
                                       mPeriod);
 
+        so_180 = new StochasticOscillator(tickPeriod_45,
+                              highThres_45,
+                              lowThres_45,
+                              nPeriod_45,
+                              smooth_45,
+                              mPeriod_45);
+
         ema = new ExponentialMovingAverage(emaPeriod);
 	}
 
 	public override void OnBar(Bar bar)
 	{
-        so.updateStochasticOscillator(bar.DateTime,
+        so_180.updateStochasticOscillator(bar.DateTime,
                                            bar.Open,
                                            bar.High,
                                            bar.Low,
@@ -485,7 +748,7 @@ public class MyStrategy : Strategy
         ema.updateExpentialMovingAverage(bar.DateTime, bar.Open, bar.High, bar.Low, bar.Close);
 
         //Prints Timestamp, %k, %D, EMA, ClosePrice
-        String output = bar.DateTime.ToString() + "\t" + so.getLastPercentK() + "\t" + so.getLastSmoothedPercentK() + "\t" + so.getLastPercentD() + "\t" + ema.getLastEMA().ToString() + "\t" + bar.Close;
+        String output = bar.DateTime.ToString() + "\t" + so_180.getLastPercentK() + "\t" + so_180.getLastSmoothedPercentK() + "\t" + so_180.getLastPercentD() + "\t" + ema.getLastEMA().ToString() + "\t" + bar.Close;
         Console.WriteLine(output);
 	}
 
