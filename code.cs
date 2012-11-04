@@ -6,6 +6,127 @@ using System.Collections.Generic;
 using OpenQuant.API;
 using OpenQuant.API.Indicators;
 
+
+public class DecisionUnit
+{
+    Scenario currentScenario;
+
+    public void run(DecisionData data)
+    {
+        if (currentScenario == Scenario.none)
+        {
+            if (triggerScenario1(data))
+            {
+                //Trigger buy action for scenario1
+                currentScenario = Scenario.scenario1;
+            }
+            else if (triggerScenario2(data))
+            {
+                //Trigger buy action for scenario2
+                currentScenario = Scenario.scenario2;
+            }
+            else if (triggerScenario3(data))
+            {
+                //Trigger buy action for scenario3
+                currentScenario = Scenario.scenario3;
+            }
+
+        }
+        else
+        {
+
+        }
+
+
+    }
+
+    public enum Scenario
+    {
+        none,
+        scenario1,
+        scenario2,
+        scenario3
+    }
+
+    public Boolean triggerScenario1(DecisionData data)
+    {
+        //Trigger 1 data
+        double previousEma45 = data.ema_45.getLastNEMA(1);
+        double currentEma45 = data.ema_45.getLastNEMA(0);
+
+
+        //Trigger 2 data
+        double currentSo180BPercentk = data.so_180_b.getLastNPercentK(0);
+        double currentSo180BLowerThreshold = data.so_180_b.getLowThreshold();
+        int lowerThresholdAllowance = 10;
+
+        //Trigger 3 data
+        double previousSo45APercentK = data.so_45_a.getLastNPercentK(1);
+        double currentSo45APercentK = data.so_45_a.getLastNPercentK(0);
+
+        double previousSo45APercentD = data.so_45_a.getLastNPercentD(1);
+        double currentSo45APercentD = data.so_45_a.getLastNPercentD(0);
+
+        double previousSo45BPercentK = data.so_45_b.getLastNPercentK(1);
+        double currentSo45BPercentK = data.so_45_b.getLastNPercentK(0); 
+        
+        double previousSo45BPercentD = data.so_45_b.getLastNPercentD(1);
+        double currentSo45BPercentD = data.so_45_b.getLastNPercentD(0);
+
+        Boolean trigger1 = false; //EMA[45] has positive slope
+        Boolean trigger2 = false; // [180] 14,4,5 gives buy signal
+        Boolean trigger3 = false; //[45] both stochastics are positive
+
+        if (previousEma45 < currentEma45)
+        {
+            trigger1 = true;
+
+        }
+
+
+        if (currentSo180BPercentk > currentSo180BLowerThreshold &&
+            currentSo180BPercentk < (currentSo180BLowerThreshold + lowerThresholdAllowance))
+        {
+            trigger2 = true;
+        }
+
+
+        if ((previousSo45APercentK < currentSo45APercentK) &&
+             (previousSo45APercentD < currentSo45APercentD) &&
+             (previousSo45BPercentK < currentSo45BPercentK) &&
+             (previousSo45BPercentD < currentSo45BPercentD))
+        {
+            trigger3 = true;
+        }
+
+
+        return (trigger1 && trigger2 && trigger3);
+    }
+
+    public Boolean triggerScenario2(DecisionData data)
+    {
+        return false;
+    }
+
+    public Boolean triggerScenario3(DecisionData data)
+    {
+        return false;
+    }
+
+}
+
+public class DecisionData
+{
+    public StochasticOscillator so_180_a;
+    public StochasticOscillator so_180_b;
+
+    public StochasticOscillator so_45_a;
+    public StochasticOscillator so_45_b;
+
+    public ExponentialMovingAverage ema_45;
+    public ExponentialMovingAverage ema_180;
+}
+
 public class Bulker
 {
     //Inputs:
@@ -321,6 +442,21 @@ public class ExponentialMovingAverage
         
     }
 
+    //Grabs the EMA value from N periods ago
+    //i.e. getLastNEMA(2) returns the EMA Stock Data for 2 periods ago:
+    //   per0 per1 per2 per3 [Current Per]
+    // getLastNEMA(2) would return per2
+    public double getLastNEMA(int n)
+    {
+        period = n;
+        if( (period <= 0) || (emaData.Count - period) <= 0)
+        {
+            period = 0;
+        }
+
+        return emaData[emaData.Count - 1 - period].value;
+    }
+
     public double getLastEMA()
     {
         return emaData[emaData.Count - 1].value;
@@ -411,6 +547,17 @@ public class StochasticOscillator
         mPeriodForPercentD = mPeriod;
         bulker = new Bulker(bulkPer);
     }
+
+    public double getLowThreshold()
+    {
+        return lowThreshold;
+    }
+
+    public double getHighThreshold()
+    {
+        return highThreshold;
+    }
+
 
     public Double getHighPrice(int N, List<StockDataNode> stockData)
     {
@@ -654,6 +801,16 @@ public class StochasticOscillator
         }
     }
 
+    public double getLastNPercentK(int n)
+    {
+        int period = n;
+        if ((period <= 0) || (percentKData.Count - period) <= 0)
+        {
+            period = 0;
+        }
+        return percentKData[percentKData.Count - 1 - period].value;
+    }
+
     public double getLastPercentK()
     {
         if (percentKData.Count == 0) {
@@ -671,8 +828,16 @@ public class StochasticOscillator
         return percentKData[percentKData.Count - 1].value2;
     }
 
-    
 
+    public double getLastNPercentD(int n)
+    {
+        int period = n;
+        if ((period <= 0) || (percentDData.Count - period) <= 0)
+        {
+            period = 0;
+        }
+        return percentDData[percentDData.Count - 1 - period].value;
+    }
 
     public double getLastPercentD()
     {
@@ -692,64 +857,138 @@ public class StochasticOscillator
 
 public class MyStrategy : Strategy
 {
-    StochasticOscillator so_180;
-    StochasticOscillator so_45;
-    ExponentialMovingAverage ema;
+    DecisionUnit decisionUnit;
+
+    StochasticOscillator so_180_a;
+    StochasticOscillator so_180_b;
+    
+    StochasticOscillator so_45_a;
+    StochasticOscillator so_45_b;
+   
+    ExponentialMovingAverage ema_45;
+    ExponentialMovingAverage ema_180;
 
 	public override void OnStrategyStart()
 	{
-        
-        //180 min period Stochastic Variables
-        double tickPeriod = 180;
-        double highThres = 80;
-        double lowThres = 20;
-        int nPeriod = 21;
-        double smooth = 5;
-        int mPeriod = 4;
+        decisionUnit = new DecisionUnit()
+        //so_180_a Stochastic Variables
+        int so_180_a_tickPeriod = 10;
+        int so_180_a_bulkPeriod = 180;
+        double so_180_a_highThres = 80;
+        double so_180_a_lowThres = 20;
+        int so_180_a_nPeriod = 14;
+        double so_180_a_smooth = 3;
+        int so_180_a_mPeriod = 3;
+
+        //so_180_b Stochastic Variables
+        int so_180_b_tickPeriod = 10;
+        int so_180_b_bulkPeriod = 180;
+        double so_180_b_highThres = 80;
+        double so_180_b_lowThres = 20;
+        int so_180_b_nPeriod = 21;
+        double so_180_b_smooth = 4;
+        int so_180_b_mPeriod = 5;
 
 
-        //45 min period Stochastic Variables
-        double tickPeriod_45 = 10;
-        double highThres_45 = 80;
-        double lowThres_45 = 20;
-        int nPeriod_45 = 14;
-        double smooth_45 = 3;
-        int mPeriod_45 = 3;
+        //so_45_a Stochastic Variables
+        int so_45_a_tickPeriod = 10;
+        int so_45_a_bulkPeriod = 45;
+        double so_45_a_highThres = 80;
+        double so_45_a_lowThres = 20;
+        int so_45_a_nPeriod = 14;
+        double so_45_a_smooth = 3;
+        int so_45_a_mPeriod = 3;
 
-        //Exponential Moving Avg. Variables
-        int emaPeriod = 10;
+        //so_45_b Stochastic Variables
+        int so_45_b_tickPeriod = 10;
+        int so_45_b_bulkPeriod = 45;
+        double so_45_b_highThres = 80;
+        double so_45_b_lowThres = 20;
+        int so_45_b_nPeriod = 21;
+        double so_45_b_smooth = 4;
+        int so_45_b_mPeriod = 5;
+
+        //ema_45 Exponential Moving Avg. Variables
+        int ema_45_period = 10;
+        int ema_45_bulkPeriod = 45;
+
+        //ema_180 Exponential Moving Avg. Variables
+        int ema_180_period = 10;
+        int ema_180_bulkPeriod = 180;
 
 		System.Console.WriteLine("On strategy start");
-        so_180 = new StochasticOscillator(tickPeriod, 
-                                      highThres,
-                                      lowThres,
-                                      nPeriod,
-                                      smooth,
-                                      mPeriod);
+        so_180_a = new StochasticOscillator(so_180_a_tickPeriod, 
+                                            so_180_a_bulkPeriod,
+                                            so_180_a_highThres,
+                                            so_180_a_lowThres,
+                                            so_180_a_nPeriod,
+                                            so_180_a_smooth,
+                                            so_180_a_mPeriod);
 
-        so_180 = new StochasticOscillator(tickPeriod_45,
-                              highThres_45,
-                              lowThres_45,
-                              nPeriod_45,
-                              smooth_45,
-                              mPeriod_45);
 
-        ema = new ExponentialMovingAverage(emaPeriod);
+        so_180_b = new StochasticOscillator(so_180_b_tickPeriod,
+                                            so_180_b_bulkPeriod,
+                                            so_180_b_highThres,
+                                            so_180_b_lowThres,
+                                            so_180_b_nPeriod,
+                                            so_180_b_smooth,
+                                            so_180_b_mPeriod);
+
+        so_45_a = new StochasticOscillator(so_45_a_tickPeriod,
+                                    so_45_a_bulkPeriod,
+                                    so_45_a_highThres,
+                                    so_45_a_lowThres,
+                                    so_45_a_nPeriod,
+                                    so_45_a_smooth,
+                                    so_45_a_mPeriod);
+
+        so_45_b = new StochasticOscillator(so_45_b_tickPeriod,
+                                    so_45_b_bulkPeriod,
+                                    so_45_b_highThres,
+                                    so_45_b_lowThres,
+                                    so_45_b_nPeriod,
+                                    so_45_b_smooth,
+                                    so_45_b_mPeriod);
+
+        ema_180 = new ExponentialMovingAverage(ema_180_period, ema_180_bulkPeriod);
+        ema_45 = new ExponentialMovingAverage(ema_45_period, ema_45_bulkPeriod);
+
 	}
 
 	public override void OnBar(Bar bar)
 	{
-        so_180.updateStochasticOscillator(bar.DateTime,
+        so_180_a.updateStochasticOscillator(bar.DateTime,
                                            bar.Open,
                                            bar.High,
                                            bar.Low,
                                            bar.Close);
 
-        ema.updateExpentialMovingAverage(bar.DateTime, bar.Open, bar.High, bar.Low, bar.Close);
+        so_180_b.updateStochasticOscillator(bar.DateTime,
+                                           bar.Open,
+                                           bar.High,
+                                           bar.Low,
+                                           bar.Close);
+
+        so_45_a.updateStochasticOscillator(bar.DateTime,
+                                           bar.Open,
+                                           bar.High,
+                                           bar.Low,
+                                           bar.Close);
+
+        so_45_b.updateStochasticOscillator(bar.DateTime,
+                                           bar.Open,
+                                           bar.High,
+                                           bar.Low,
+                                           bar.Close);
+
+        ema_180.updateExpentialMovingAverage(bar.DateTime, bar.Open, bar.High, bar.Low, bar.Close);
+        ema_45.updateExpentialMovingAverage(bar.DateTime, bar.Open, bar.High, bar.Low, bar.Close);
+
+        decisionUnit.run();
 
         //Prints Timestamp, %k, %D, EMA, ClosePrice
-        String output = bar.DateTime.ToString() + "\t" + so_180.getLastPercentK() + "\t" + so_180.getLastSmoothedPercentK() + "\t" + so_180.getLastPercentD() + "\t" + ema.getLastEMA().ToString() + "\t" + bar.Close;
-        Console.WriteLine(output);
+        //String output = bar.DateTime.ToString() + "\t" + so_180.getLastPercentK() + "\t" + so_180.getLastSmoothedPercentK() + "\t" + so_180.getLastPercentD() + "\t" + ema.getLastEMA().ToString() + "\t" + bar.Close;
+        //Console.WriteLine(output);
 	}
 
 	public override void OnQuote(Quote quote)
