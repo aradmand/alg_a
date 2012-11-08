@@ -11,6 +11,12 @@ public class DecisionUnit
 {
     Scenario currentScenario;
 
+    public DecisionUnit()
+    {
+        currentScenario = Scenario.none;
+
+    }
+
     public void run(DecisionData data)
     {
         if (currentScenario == Scenario.none)
@@ -34,11 +40,44 @@ public class DecisionUnit
         }
         else
         {
+            switch (currentScenario)
+            {
+                case Scenario.scenario1:
+                    handleScenario1(data);
+                    break;
 
+                case Scenario.scenario2:
+                    break;
+
+            }
+        }
+    }
+
+    void handleScenario1(DecisionData data)
+    {
+        //Sell Trigger1 data
+        double thirdEma45 = data.ema_45.getLastNEMA(2);
+        double previousEma45 = data.ema_45.getLastNEMA(1);
+        double currentEma45 = data.ema_45.getLastNEMA(0);
+
+        //Sell Trigger2 data
+
+
+        Boolean sellTrigger1 = false; // [45] EMA is negative for 2 candles
+        Boolean sellTrigger2 = false; // [180] 12, 4, 5 K value slope goes negative
+
+
+        if (thirdEma45 > previousEma45 &&
+            previousEma45 > currentEma45)
+        {
+            sellTrigger1 = true;
+            //SELL!
         }
 
 
+                    
     }
+
 
     public enum Scenario
     {
@@ -105,7 +144,31 @@ public class DecisionUnit
 
     public Boolean triggerScenario2(DecisionData data)
     {
-        return false;
+        //Trigger 1 data
+        double previousEma45 = data.ema_45.getLastNEMA(1);
+        double currentEma45 = data.ema_45.getLastNEMA(0);
+
+        //Trigger 2 data
+        double currentSo180APercentk = data.so_180_a.getLastNPercentK(0);
+        double currentSo180ALowerThreshold = data.so_180_a.getLowThreshold();
+        int lowerThresholdAllowance = 10;
+
+        Boolean trigger1 = false; //EMA[45] has positive slope
+        Boolean trigger2 = false; // [180] 14,3,3 gives buy signal
+
+
+        if (previousEma45 < currentEma45)
+        {
+            trigger1 = true;
+        }
+
+        if (currentSo180APercentk > currentSo180ALowerThreshold &&
+            currentSo180APercentk < (currentSo180ALowerThreshold + lowerThresholdAllowance))
+        {
+            trigger2 = true;
+        }
+
+        return (trigger1 && trigger2);
     }
 
     public Boolean triggerScenario3(DecisionData data)
