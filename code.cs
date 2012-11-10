@@ -53,6 +53,49 @@ public class DecisionUnit
         }
     }
 
+    //Returns true if current data point is within s standard deviations from the regression line
+    // false otherwise.
+    Boolean dataDropsFromRegression(List<double> coords, int stDev = 2)
+    {
+
+        return false;
+
+    }
+
+    class RegressionData
+    {
+        double a;
+        double b;
+        double standardDev;
+        List<double> regressionData;
+    }
+
+    void calculateRegression(List<double> coords)
+    {
+        double xySum = 0;
+        double xSquaredSum = 0;
+        double ySquaredSum = 0;
+        double ySum = 0;
+        double xSum = 0;
+        double mean;
+        for (int i = 1; i < coords.Count; i++)
+        {
+            double x = i;
+            double xSquared = x * x;
+            double y = coords[i - 1];
+            double ySquared = y * y;
+            double xy = x * y;
+            xSum += x;
+            ySum += y;
+            xySum += xy;
+            xSquaredSum += xSquared;
+            ySquaredSum += ySquared;
+        }
+
+        double a = ( (ySum * xSquaredSum) - (xSum * xySum) ) / ( (coords.Count * xSquaredSum) - (xSum * xSum) );
+        double b = ((coords.Count * xySum) - (xSum * ySum) ) / ( ( coords.Count * xSquaredSum) - (xSum * xSum) );
+    }
+
     void handleScenario1(DecisionData data)
     {
         //Sell Trigger1 data
@@ -61,10 +104,24 @@ public class DecisionUnit
         double currentEma45 = data.ema_45.getLastNEMA(0);
 
         //Sell Trigger2 data
+        double thirdSo180BPercentk = data.so_180_b.getLastNPercentK(2);
+        double previousSo180BPercentk = data.so_180_b.getLastNPercentK(1);
+        double currentSo180BPercentk = data.so_180_b.getLastNPercentK(0);
+        double currentSo180BUpperThreshold = data.so_180_b.getHighThreshold();
+
+        //Sell Trigger3 data
+
 
 
         Boolean sellTrigger1 = false; // [45] EMA is negative for 2 candles
-        Boolean sellTrigger2 = false; // [180] 12, 4, 5 K value slope goes negative
+        Boolean sellTrigger2 = false; // [180]21,4,5 is Above the 80 threshold and %K slope goes neg.
+                                      // && [45] EMA goes negative
+       
+        Boolean sellTrigger3 = false; //[45] sell if after 10 candles, 40% of profit is lost
+        Boolean sellTrigger4 = false; // sell if price drops 3% below buy price
+        Boolean sellTrigger5 = false; // sell half of position at 4% profit
+        Boolean sellTrigger6 = false; // create regression line after 10 candles and sell if next candle drops out of regression
+
 
 
         if (thirdEma45 > previousEma45 &&
@@ -72,6 +129,18 @@ public class DecisionUnit
         {
             sellTrigger1 = true;
             //SELL!
+        }
+
+
+        if ((currentSo180BPercentk > currentSo180BUpperThreshold &&
+            previousSo180BPercentk > currentSo180BPercentk)
+            
+            &&
+       
+            (previousEma45 > currentEma45))
+        {
+            sellTrigger2 = true;
+            //Sell!
         }
 
 
