@@ -64,13 +64,13 @@ public class DecisionUnit
 
     class RegressionData
     {
-        double a;
-        double b;
-        double standardDev;
-        List<double> regressionData;
+        public double a;
+        public double b;
+        public double standardDev;
+        public List<double> yVals;
     }
 
-    void calculateRegression(List<double> coords)
+    RegressionData calculateRegression(List<double> coords)
     {
         double xySum = 0;
         double xSquaredSum = 0;
@@ -94,6 +94,46 @@ public class DecisionUnit
 
         double a = ( (ySum * xSquaredSum) - (xSum * xySum) ) / ( (coords.Count * xSquaredSum) - (xSum * xSum) );
         double b = ((coords.Count * xySum) - (xSum * ySum) ) / ( ( coords.Count * xSquaredSum) - (xSum * xSum) );
+
+        //Determine regression line
+        // y = a + bx
+        List<double> yData = new List<double>();
+        for (int i = 1; i < coords.Count; i++)
+        {
+            double x = i;
+            double y = a + (b * x);
+            yData.Add(y);
+        }
+
+        RegressionData regData = new RegressionData();
+        regData.yVals = yData;
+
+        //Calculate standard deviation of regression line
+        ySum = 0;
+        //First calculate sum
+        for (int i = 1; i < yData.Count; i++)
+        {
+            ySum += yData[i - 1];
+        }
+
+        mean = ySum / yData.Count;
+
+        //Next calculate deviations
+        List<double> deviations = new List<double>();
+        double devSquaredSum = 0;
+        for (int i = 1; i < yData.Count; i++)
+        {
+            double dev = yData[i - 1] - mean;
+            double devSquared = dev * dev;
+            devSquaredSum += devSquared;
+        }
+
+        double standardDev = System.Math.Sqrt(devSquaredSum / (yData.Count - 1));
+        regData.a = a;
+        regData.b = b;
+        regData.standardDev = standardDev;
+        regData.yVals = yData;
+        return regData;
     }
 
     void handleScenario1(DecisionData data)
