@@ -25,6 +25,7 @@ public class DecisionUnit
             {
                 //Trigger buy action for scenario1
                 currentScenario = Scenario.scenario1;
+                data.strategy.buyOrder = LimitOrder(Side.Sell, data.strategy.buyQty, prevClose);
             }
             else if (triggerScenario2(data))
             {
@@ -54,12 +55,22 @@ public class DecisionUnit
     }
 
     //Returns true if current data point is within s standard deviations from the regression line
-    // false otherwise.
-    Boolean dataDropsFromRegression(List<double> coords, int stDev = 2)
+    // false if the current value is less than stDev standardDeviations from the Regression line.
+    Boolean dataDropsFromRegression(List<double> coords, double currentVal, int stDev = 2)
     {
+        RegressionData regData = calculateRegression(coords);
+        //Regression line is
+        // y = a + bx
 
+        double nextY = regData.a + (regData.b * coords.Count);
+        double upperRange = nextY + (regData.standardDev * stDev);
+        double lowerRange = nextY - (regData.standardDev * stDev);
+
+        if (currentVal < lowerRange)
+        {
+            return true;
+        }
         return false;
-
     }
 
     class RegressionData
@@ -152,6 +163,18 @@ public class DecisionUnit
         //Sell Trigger3 data
 
 
+        //Sell Trigger6 data
+        List<double> ema45RegData = new List<double>();
+        for (int i = 0; i < 10; i++)
+        {
+            ema45RegData.Add(data.ema_45.getLastNEMA(i + 1));  
+        }
+        Boolean dataDropFromReg = dataDropsFromRegression(ema45RegData, currentEma45);
+
+        
+
+
+
 
         Boolean sellTrigger1 = false; // [45] EMA is negative for 2 candles
         Boolean sellTrigger2 = false; // [180]21,4,5 is Above the 80 threshold and %K slope goes neg.
@@ -182,6 +205,13 @@ public class DecisionUnit
             sellTrigger2 = true;
             //Sell!
         }
+
+        if (dataDropFromReg)
+        {
+            sellTrigger6 = true;
+            //sell!
+        }
+
 
 
                     
@@ -289,6 +319,8 @@ public class DecisionUnit
 
 public class DecisionData
 {
+    public MyStrategy strategy;
+    public Bar bar;
     public StochasticOscillator so_180_a;
     public StochasticOscillator so_180_b;
 
@@ -1024,7 +1056,25 @@ public class StochasticOscillator
     List<StockDataNode> percentDData = new List<StockDataNode>();
 }
 
+public class PositionData
+{
+    public double id;
+    public int quantity;
+    public double price;
+}
 
+public class PositionTracker
+{
+    //Open Orders
+    public List<PositionData> openOrders;
+
+    //Open Positions
+    public List<PositionData> openPositions;
+
+    //Executions
+    public List<PositionData> executions;
+
+}
 
 
 public class MyStrategy : Strategy
@@ -1040,9 +1090,16 @@ public class MyStrategy : Strategy
     ExponentialMovingAverage ema_45;
     ExponentialMovingAverage ema_180;
 
+    // orders
+    public Order buyOrder;
+    public Order sellOrder;
+
+    public int buyQty = 10;
+    public int sellQty = 10;
+
 	public override void OnStrategyStart()
 	{
-        decisionUnit = new DecisionUnit()
+        decisionUnit = new DecisionUnit();
         //so_180_a Stochastic Variables
         int so_180_a_tickPeriod = 10;
         int so_180_a_bulkPeriod = 180;
@@ -1156,7 +1213,17 @@ public class MyStrategy : Strategy
         ema_180.updateExpentialMovingAverage(bar.DateTime, bar.Open, bar.High, bar.Low, bar.Close);
         ema_45.updateExpentialMovingAverage(bar.DateTime, bar.Open, bar.High, bar.Low, bar.Close);
 
-        decisionUnit.run();
+        DecisionData ddata = new DecisionData();
+        ddata.strategy = this;
+        ddata.bar = bar;
+        ddata.so_180_a = so_180_a;
+        ddata.so_180_b = so_180_b;
+        ddata.so_45_a = so_45_a;
+        ddata.so_45_b = so_45_b;
+        ddata.ema_45 = ema_45;
+        ddata.ema_180 = ema_180;
+
+        decisionUnit.run(ddata);
 
         //Prints Timestamp, %k, %D, EMA, ClosePrice
         //String output = bar.DateTime.ToString() + "\t" + so_180.getLastPercentK() + "\t" + so_180.getLastSmoothedPercentK() + "\t" + so_180.getLastPercentD() + "\t" + ema.getLastEMA().ToString() + "\t" + bar.Close;
