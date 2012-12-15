@@ -16,6 +16,23 @@ public class DecisionUnit
         currentScenario = Scenario.none;
 
     }
+	
+	public void placeOrder(DecisionData data, OpenQuant.API.OrderSide side, double qty, double limit)
+	{
+		double price = data.bar.Close;
+		String msg = "Placing order:  side: " + side.ToString() + " amt: " + price.ToString() + " Limit: " + limit.ToString() + " Qty: " + qty.ToString();
+		System.Console.WriteLine(msg);
+		if(side == OpenQuant.API.OrderSide.Buy)
+		{
+			data.strategy.buyOrder = data.strategy.LimitOrder(OpenQuant.API.OrderSide.Buy, qty, limit);
+			data.strategy.buyOrder.Send();
+		}
+		else
+		{
+			data.strategy.sellOrder = data.strategy.LimitOrder(OpenQuant.API.OrderSide.Sell, qty, limit);
+			data.strategy.sellOrder.Send();
+		}
+	}
 
     public void run(DecisionData data)
     {
@@ -25,7 +42,14 @@ public class DecisionUnit
             {
                 //Trigger buy action for scenario1
                 currentScenario = Scenario.scenario1;
-                data.strategy.buyOrder = LimitOrder(Side.Sell, data.strategy.buyQty, prevClose);
+				double limitPrice = data.bar.Close + .02;
+				double price = data.bar.Close;
+				String msg = "Placing buy order: amt: " + price.ToString() + " Limit: " + limitPrice.ToString();
+				System.Console.WriteLine(msg);
+                data.strategy.buyOrder = data.strategy.LimitOrder(OpenQuant.API.OrderSide.Buy, data.strategy.buyQty, limitPrice);
+				data.strategy.buyOrder.Send();
+				placeOrder(data, OpenQuant.API.OrderSide.Buy, data.strategy.buyQty, limitPrice);
+
             }
             else if (triggerScenario2(data))
             {
@@ -587,6 +611,8 @@ public class ExponentialMovingAverage
     int period;
 
     Bulker bulker;
+	
+	public bool emaActive = false;
  
     public ExponentialMovingAverage(int tickPeriod, int bulkPer)
     {
@@ -611,6 +637,7 @@ public class ExponentialMovingAverage
             //We haven't built up a period yet
             return;
         }
+		emaActive = true;
 
         StockDataNode node = bulker.getLastPeriodData();
         openPrice = node.openVal;
@@ -727,6 +754,10 @@ public class StochasticOscillator
     // Fast_Percent_K
     // Fast_Percent_D
     
+	public bool saActive = false;
+	
+	private bool kActive = false;
+	private bool dActive = false;
     private int tickerPeriod;
     private double highThreshold;
     private double lowThreshold;
@@ -947,6 +978,8 @@ public class StochasticOscillator
             //Do nothing, we don't have enough data yet.
             return;
         }
+		dActive = true;
+		saActive = (dActive && kActive ? true : false);
         
         //Use the previous M periods to calculate the current fast %D, and store it
         int size = percentKData.Count - 1;
@@ -977,6 +1010,9 @@ public class StochasticOscillator
         }
         else
         {
+			kActive = true;
+			saActive = (dActive && kActive ? true : false);
+			
             //Use the previous N periods to calculate the current fast %k, and store it
             percentKData.Add(new StockDataNode(timestamp, 0, openPrice, highPrice, lowPrice, closePrice));
             double currentClosingPrice = closePrice;
@@ -1223,7 +1259,15 @@ public class MyStrategy : Strategy
         ddata.ema_45 = ema_45;
         ddata.ema_180 = ema_180;
 
-        decisionUnit.run(ddata);
+		if(ddata.so_180_a.saActive &&
+			ddata.so_180_b.saActive &&
+			ddata.so_45_a.saActive &&
+			ddata.so_45_b.saActive &&
+			ddata.ema_45.emaActive &&
+			ddata.ema_180.emaActive)
+		{
+			decisionUnit.run(ddata);
+		}
 
         //Prints Timestamp, %k, %D, EMA, ClosePrice
         //String output = bar.DateTime.ToString() + "\t" + so_180.getLastPercentK() + "\t" + so_180.getLastSmoothedPercentK() + "\t" + so_180.getLastPercentD() + "\t" + ema.getLastEMA().ToString() + "\t" + bar.Close;
@@ -1238,7 +1282,20 @@ public class MyStrategy : Strategy
 	{
 	
 	}
+
+	public override void OnPositionOpened()
+	{
+		System.Console.WriteLine("On Position Opened called!");
+	}
+
+	public override void OnPositionChanged()
+	{
+		
+		System.Console.WriteLine("On Position Changed called!");
+	}
 }
+
+
 
 
 
