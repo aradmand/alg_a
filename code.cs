@@ -401,8 +401,9 @@ public class Bulker
             double open = bulkData[bulkData.Count - bulkPeriod].openVal;
             double close = closePrice;
             periodData.Add(new StockDataNode(timestamp, 0, openPrice, highPrice, lowPrice, closePrice));
+			return 1;
         }
-        return 1;
+        return -1;
     }
 
     public Double getHighPrice(int N, List<StockDataNode> stockData)
@@ -596,6 +597,10 @@ public class SimpleMovingAverage
 
     public double getLastSMA()
     {
+		if (smaData.Count == 0)
+		{
+			return 0;
+		}
         return smaData[smaData.Count - 1].value;
     }
 
@@ -611,11 +616,13 @@ public class ExponentialMovingAverage
     int period;
 
     Bulker bulker;
+	private String name;
 	
 	public bool emaActive = false;
  
-    public ExponentialMovingAverage(int tickPeriod, int bulkPer)
+    public ExponentialMovingAverage(String emaName, int tickPeriod, int bulkPer)
     {
+		name = emaName;
         period = tickPeriod;
         bulker = new Bulker(bulkPer);
         sma = new SimpleMovingAverage(tickPeriod, bulkPer);
@@ -638,6 +645,7 @@ public class ExponentialMovingAverage
             return;
         }
 		emaActive = true;
+		System.Console.WriteLine(name + " is active.");
 
         StockDataNode node = bulker.getLastPeriodData();
         openPrice = node.openVal;
@@ -764,9 +772,12 @@ public class StochasticOscillator
     private int nPeriodForPercentK;
     private double smoothingForPercentD;
     private int mPeriodForPercentD;
+	
+	private String name;
 
     Bulker bulker;
-    public StochasticOscillator(int tickPeriod,
+    public StochasticOscillator(String saName,
+							int tickPeriod,
                            int bulkPer,
                          double highThres,
                          double lowThres,
@@ -774,6 +785,7 @@ public class StochasticOscillator
                          double smooth,
                          int mPeriod)
     {
+		name = saName;
         tickerPeriod = tickPeriod;
         highThreshold = highThres;
         lowThreshold = lowThres;
@@ -980,6 +992,10 @@ public class StochasticOscillator
         }
 		dActive = true;
 		saActive = (dActive && kActive ? true : false);
+		if (saActive)
+		{	
+			System.Console.WriteLine(name + " is active.");
+		}
         
         //Use the previous M periods to calculate the current fast %D, and store it
         int size = percentKData.Count - 1;
@@ -1012,6 +1028,10 @@ public class StochasticOscillator
         {
 			kActive = true;
 			saActive = (dActive && kActive ? true : false);
+			if (saActive)
+			{	
+				System.Console.WriteLine(name + " is active.");
+			}
 			
             //Use the previous N periods to calculate the current fast %k, and store it
             percentKData.Add(new StockDataNode(timestamp, 0, openPrice, highPrice, lowPrice, closePrice));
@@ -1182,7 +1202,8 @@ public class MyStrategy : Strategy
         int ema_180_bulkPeriod = 180;
 
 		System.Console.WriteLine("On strategy start");
-        so_180_a = new StochasticOscillator(so_180_a_tickPeriod, 
+        so_180_a = new StochasticOscillator("so_180_a",
+											so_180_a_tickPeriod, 
                                             so_180_a_bulkPeriod,
                                             so_180_a_highThres,
                                             so_180_a_lowThres,
@@ -1191,7 +1212,8 @@ public class MyStrategy : Strategy
                                             so_180_a_mPeriod);
 
 
-        so_180_b = new StochasticOscillator(so_180_b_tickPeriod,
+        so_180_b = new StochasticOscillator("so_180_b",
+											so_180_b_tickPeriod,
                                             so_180_b_bulkPeriod,
                                             so_180_b_highThres,
                                             so_180_b_lowThres,
@@ -1199,7 +1221,8 @@ public class MyStrategy : Strategy
                                             so_180_b_smooth,
                                             so_180_b_mPeriod);
 
-        so_45_a = new StochasticOscillator(so_45_a_tickPeriod,
+        so_45_a = new StochasticOscillator("so_45_a",
+									so_45_a_tickPeriod,
                                     so_45_a_bulkPeriod,
                                     so_45_a_highThres,
                                     so_45_a_lowThres,
@@ -1207,7 +1230,8 @@ public class MyStrategy : Strategy
                                     so_45_a_smooth,
                                     so_45_a_mPeriod);
 
-        so_45_b = new StochasticOscillator(so_45_b_tickPeriod,
+        so_45_b = new StochasticOscillator("so_45_b",
+									so_45_b_tickPeriod,
                                     so_45_b_bulkPeriod,
                                     so_45_b_highThres,
                                     so_45_b_lowThres,
@@ -1215,8 +1239,8 @@ public class MyStrategy : Strategy
                                     so_45_b_smooth,
                                     so_45_b_mPeriod);
 
-        ema_180 = new ExponentialMovingAverage(ema_180_period, ema_180_bulkPeriod);
-        ema_45 = new ExponentialMovingAverage(ema_45_period, ema_45_bulkPeriod);
+        ema_180 = new ExponentialMovingAverage("ema_180", ema_180_period, ema_180_bulkPeriod);
+        ema_45 = new ExponentialMovingAverage("ema_45", ema_45_period, ema_45_bulkPeriod);
 
 	}
 
@@ -1266,8 +1290,15 @@ public class MyStrategy : Strategy
 			ddata.ema_45.emaActive &&
 			ddata.ema_180.emaActive)
 		{
+			//testing
+			System.Console.WriteLine("Data acquired ... algo active.");
+			//testing
 			decisionUnit.run(ddata);
 		}
+		
+		//testing
+		//System.Console.WriteLine(bar);
+		//testing
 
         //Prints Timestamp, %k, %D, EMA, ClosePrice
         //String output = bar.DateTime.ToString() + "\t" + so_180.getLastPercentK() + "\t" + so_180.getLastSmoothedPercentK() + "\t" + so_180.getLastPercentD() + "\t" + ema.getLastEMA().ToString() + "\t" + bar.Close;
@@ -1294,6 +1325,8 @@ public class MyStrategy : Strategy
 		System.Console.WriteLine("On Position Changed called!");
 	}
 }
+
+
 
 
 
