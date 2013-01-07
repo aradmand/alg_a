@@ -1137,6 +1137,9 @@ public class MyStrategy : Strategy
 {
     DecisionUnit decisionUnit;
 
+	TimeSpan startOfDay = new TimeSpan(9,30,0);
+	TimeSpan endOfDay = new TimeSpan(16,0,0);
+	
     StochasticOscillator so_180_a;
     StochasticOscillator so_180_b;
     
@@ -1246,6 +1249,17 @@ public class MyStrategy : Strategy
 
 	public override void OnBar(Bar bar)
 	{
+		//Testing
+		Console.WriteLine(bar.DateTime.ToString());
+		//testing
+		if ( (bar.DateTime.TimeOfDay < startOfDay) ||
+			(bar.DateTime.TimeOfDay > endOfDay) )
+		{
+			Console.WriteLine("Not within trading hours. Ignoring data.");
+			return;	
+		}
+			
+			
         so_180_a.updateStochasticOscillator(bar.DateTime,
                                            bar.Open,
                                            bar.High,
@@ -1325,6 +1339,7 @@ public class MyStrategy : Strategy
 		System.Console.WriteLine("On Position Changed called!");
 	}
 }
+
 
 
 
