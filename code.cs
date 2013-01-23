@@ -259,6 +259,7 @@ public class DecisionUnit
 
         //Trigger 2 data
         double currentSo180BPercentk = data.so_180_b.getLastNPercentK(0);
+		currentSo180BPercentk = currentSo180BPercentk * 100;
         double currentSo180BLowerThreshold = data.so_180_b.getLowThreshold();
         int lowerThresholdAllowance = 10;
 
@@ -301,6 +302,17 @@ public class DecisionUnit
             trigger3 = true;
         }
 
+		//TeSTING
+		System.Console.WriteLine("======");
+		System.Console.WriteLine("Current %k = " + currentSo180BPercentk.ToString());
+		System.Console.WriteLine("Lowerthresh= " + currentSo180BLowerThreshold.ToString());
+		System.Console.WriteLine("allowance = " + lowerThresholdAllowance.ToString());
+		System.Console.WriteLine("Trigger Status [" + trigger1 + ", " + trigger2 + ", " + trigger3);
+		System.Console.WriteLine("======");
+		if (trigger1 && trigger2 && trigger3) {
+			Environment.Exit(0);	
+		}
+		//TESTING
 
         return (trigger1 && trigger2 && trigger3);
     }
@@ -1339,6 +1351,7 @@ public class MyStrategy : Strategy
 		System.Console.WriteLine("On Position Changed called!");
 	}
 }
+
 
 
 
