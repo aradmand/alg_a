@@ -252,6 +252,10 @@ public class DecisionUnit
 
     public Boolean triggerScenario1(DecisionData data)
     {
+		//testing data
+		double curr_180_percent_d = data.so_180_b.getLastNPercentD(0);
+		//testing data
+		
         //Trigger 1 data
         double previousEma45 = data.ema_45.getLastNEMA(1);
         double currentEma45 = data.ema_45.getLastNEMA(0);
@@ -305,6 +309,7 @@ public class DecisionUnit
 		//TeSTING
 		System.Console.WriteLine("======");
 		System.Console.WriteLine("Current %k = " + currentSo180BPercentk.ToString());
+		System.Console.WriteLine("Crrent %d = " + curr_180_percent_d.ToString());
 		System.Console.WriteLine("Lowerthresh= " + currentSo180BLowerThreshold.ToString());
 		System.Console.WriteLine("allowance = " + lowerThresholdAllowance.ToString());
 		System.Console.WriteLine("Trigger Status [" + trigger1 + ", " + trigger2 + ", " + trigger3);
@@ -415,6 +420,34 @@ public class Bulker
             periodData.Add(new StockDataNode(timestamp, 0, openPrice, highPrice, lowPrice, closePrice));
 			return 1;
         }
+		else if (bulkData.Count > bulkPeriod)
+		{
+			int tempPeriod = bulkData.Count % bulkPeriod;
+			double high = getHighPrice(tempPeriod, bulkData);
+			double low = getLowPrice(tempPeriod, bulkData);
+			double open = bulkData[bulkData.Count - tempPeriod].openVal;
+			double close = closePrice;
+			
+			//testing
+			/*System.Console.WriteLine("----------------------");
+			System.Console.WriteLine("bulkdata count === " + bulkData.Count.ToString());
+			System.Console.WriteLine("bulkPeriod === " + bulkPeriod.ToString());
+			System.Console.WriteLine("tempPeriod === " + tempPeriod.ToString());
+			System.Console.WriteLine("----------------------");
+			*///testing
+			
+			if (periodData.Count > 1){
+				//testing
+				//System.Console.WriteLine("Removing data at position: " + (periodData.Count - 1).ToString());
+				//testing
+				periodData.RemoveAt(periodData.Count - 1);
+				periodData.Add(new StockDataNode(timestamp, 0, openPrice, highPrice, lowPrice, closePrice));			
+			}
+			else
+			{
+				periodData.Add(new StockDataNode(timestamp, 0, openPrice, highPrice, lowPrice, closePrice));				
+			}
+		}
         return -1;
     }
 
@@ -659,6 +692,11 @@ public class ExponentialMovingAverage
 		emaActive = true;
 		System.Console.WriteLine(name + " is active.");
 
+		//testing
+		System.Console.WriteLine("ema count " + emaData.Count.ToString());
+		System.Console.WriteLine("period: " + period.ToString());
+		//testing
+		
         StockDataNode node = bulker.getLastPeriodData();
         openPrice = node.openVal;
         highPrice = node.highVal;
@@ -684,12 +722,13 @@ public class ExponentialMovingAverage
 
         emaData.Add(new StockDataNode(timestamp, ema, openPrice, highPrice, lowPrice, closePrice));
 
-        //String calcStr = "("+closePrice.ToString() + " - " + this.getLastEMA().ToString() + ") * " + multiplier.ToString() + " + " + this.getLastEMA().ToString();
-        //Console.WriteLine("CALCSTR ==== " + calcStr);
+		//Testing
+        String calcStr = "("+closePrice.ToString() + " - " + this.getLastEMA().ToString() + ") * " + multiplier.ToString() + " + " + this.getLastEMA().ToString();
+        Console.WriteLine("CALCSTR ==== " + calcStr);
 
-        //String output = "EMA: " + ema.ToString();
-        //Console.WriteLine(output);
-
+        String output = "EMA: " + ema.ToString();
+        Console.WriteLine(output);
+		//testing
         
     }
 
@@ -1019,8 +1058,11 @@ public class StochasticOscillator
         }
         double d = sum / mPeriodForPercentD;
         percentDData.Add(new StockDataNode(timestamp, d, openPrice, highPrice, lowPrice, closePrice));
-        //String output = "PercentD: " + d.ToString();
-        //Console.WriteLine(output);
+        
+		//Testing
+		String output = "PercentD: " + d.ToString();
+        Console.WriteLine(output);
+		//TEsting
         
     }
 
@@ -1067,9 +1109,12 @@ public class StochasticOscillator
             String calc ="current: " + currentClosingPrice.ToString() + "\n";
             calc += "low: " + low.ToString() + "\n";
             calc += "high: " + high.ToString();
-            //Console.WriteLine(calc);
-            //String output = "PercentK: " + k.ToString();
-            //Console.WriteLine(output);
+            
+			//Testing
+			//Console.WriteLine(calc);
+            String output = "PercentK: " + k.ToString();
+            Console.WriteLine(output);
+			//Testing
         }
     }
 
@@ -1262,13 +1307,15 @@ public class MyStrategy : Strategy
 	public override void OnBar(Bar bar)
 	{
 		//Testing
-		Console.WriteLine(bar.DateTime.ToString());
+		Console.WriteLine(bar.ToString());
 		//testing
 		if ( (bar.DateTime.TimeOfDay < startOfDay) ||
 			(bar.DateTime.TimeOfDay > endOfDay) )
 		{
-			Console.WriteLine("Not within trading hours. Ignoring data.");
-			return;	
+			//testing
+			//Console.WriteLine("Not within trading hours. Ignoring data.");
+			//return;	
+			//testing
 		}
 			
 			
@@ -1351,6 +1398,8 @@ public class MyStrategy : Strategy
 		System.Console.WriteLine("On Position Changed called!");
 	}
 }
+
+
 
 
 
