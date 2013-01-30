@@ -690,11 +690,11 @@ public class ExponentialMovingAverage
             return;
         }
 		emaActive = true;
-		System.Console.WriteLine(name + " is active.");
+		//System.Console.WriteLine(name + " is active.");
 
 		//testing
-		System.Console.WriteLine("ema count " + emaData.Count.ToString());
-		System.Console.WriteLine("period: " + period.ToString());
+		//System.Console.WriteLine("ema count " + emaData.Count.ToString());
+		//System.Console.WriteLine("period: " + period.ToString());
 		//testing
 		
         StockDataNode node = bulker.getLastPeriodData();
@@ -723,11 +723,11 @@ public class ExponentialMovingAverage
         emaData.Add(new StockDataNode(timestamp, ema, openPrice, highPrice, lowPrice, closePrice));
 
 		//Testing
-        String calcStr = "("+closePrice.ToString() + " - " + this.getLastEMA().ToString() + ") * " + multiplier.ToString() + " + " + this.getLastEMA().ToString();
-        Console.WriteLine("CALCSTR ==== " + calcStr);
+        //String calcStr = "("+closePrice.ToString() + " - " + this.getLastEMA().ToString() + ") * " + multiplier.ToString() + " + " + this.getLastEMA().ToString();
+        //Console.WriteLine("CALCSTR ==== " + calcStr);
 
-        String output = "EMA: " + ema.ToString();
-        Console.WriteLine(output);
+        //String output = "EMA: " + ema.ToString();
+        //Console.WriteLine(output);
 		//testing
         
     }
@@ -1024,6 +1024,19 @@ public class StochasticOscillator
                            highPrice,
                            lowPrice,
                            closePrice);
+		
+		//testing
+		if (percentDData.Count > 0)
+		{
+			Console.Write(timestamp.ToString());
+			Console.Write(", ");
+			Console.Write(percentDData[percentDData.Count - 1].value.ToString());
+			Console.Write(", ");
+			Console.Write(percentKData[percentKData.Count - 1].value.ToString());
+			Console.Write("\n");
+		
+		}
+		//testing
     }
 
 
@@ -1045,7 +1058,9 @@ public class StochasticOscillator
 		saActive = (dActive && kActive ? true : false);
 		if (saActive)
 		{	
-			System.Console.WriteLine(name + " is active.");
+			//testing
+			//System.Console.WriteLine(name + " is active.");
+			//testing
 		}
         
         //Use the previous M periods to calculate the current fast %D, and store it
@@ -1053,15 +1068,27 @@ public class StochasticOscillator
         double sum = 0;
         for (int i = 0; i < mPeriodForPercentD; i++)
         {
-            sum += percentKData[size].value2;
+            sum += percentKData[size].value;
             size--;
         }
         double d = sum / mPeriodForPercentD;
         percentDData.Add(new StockDataNode(timestamp, d, openPrice, highPrice, lowPrice, closePrice));
         
 		//Testing
-		String output = "PercentD: " + d.ToString();
-        Console.WriteLine(output);
+		/*Console.WriteLine("SUMMING TOGETHER THE FOLLOWING: period-" + mPeriodForPercentD.ToString());
+		int testsize = percentKData.Count - 1;
+		double testsum = 0;
+		for (int i = 0; i < mPeriodForPercentD; i++)
+		{
+			Console.WriteLine(percentKData[testsize].value2.ToString());
+			testsum += percentKData[testsize].value2;
+			testsize--;
+		}
+		double testd = sum / mPeriodForPercentD;
+		Console.WriteLine("TEST %D ==== " + testd.ToString());
+		*/
+		//String output = "PercentD: " + d.ToString();
+        //Console.WriteLine(output);
 		//TEsting
         
     }
@@ -1084,7 +1111,9 @@ public class StochasticOscillator
 			saActive = (dActive && kActive ? true : false);
 			if (saActive)
 			{	
-				System.Console.WriteLine(name + " is active.");
+				//testing
+				//System.Console.WriteLine(name + " is active.");
+				//testing
 			}
 			
             //Use the previous N periods to calculate the current fast %k, and store it
@@ -1112,8 +1141,8 @@ public class StochasticOscillator
             
 			//Testing
 			//Console.WriteLine(calc);
-            String output = "PercentK: " + k.ToString();
-            Console.WriteLine(output);
+            //String output = "PercentK: " + k.ToString();
+            //Console.WriteLine(output);
 			//Testing
         }
     }
@@ -1194,7 +1223,7 @@ public class MyStrategy : Strategy
 {
     DecisionUnit decisionUnit;
 
-	TimeSpan startOfDay = new TimeSpan(9,30,0);
+	DateTime startOfDay = new DateTime(2013, 1, 18, 9,31,0);
 	TimeSpan endOfDay = new TimeSpan(16,0,0);
 	
     StochasticOscillator so_180_a;
@@ -1307,14 +1336,16 @@ public class MyStrategy : Strategy
 	public override void OnBar(Bar bar)
 	{
 		//Testing
-		Console.WriteLine(bar.ToString());
+		//Console.WriteLine(bar.DateTime.ToString());
 		//testing
-		if ( (bar.DateTime.TimeOfDay < startOfDay) ||
-			(bar.DateTime.TimeOfDay > endOfDay) )
+		if ( (bar.DateTime.TimeOfDay < startOfDay.TimeOfDay) 
+			//||
+			//(bar.DateTime.TimeOfDay > endOfDay) 
+			)
 		{
 			//testing
 			//Console.WriteLine("Not within trading hours. Ignoring data.");
-			//return;	
+			return;	
 			//testing
 		}
 			
@@ -1364,7 +1395,7 @@ public class MyStrategy : Strategy
 			ddata.ema_180.emaActive)
 		{
 			//testing
-			System.Console.WriteLine("Data acquired ... algo active.");
+			//System.Console.WriteLine("Data acquired ... algo active.");
 			//testing
 			decisionUnit.run(ddata);
 		}
@@ -1398,6 +1429,7 @@ public class MyStrategy : Strategy
 		System.Console.WriteLine("On Position Changed called!");
 	}
 }
+
 
 
 
